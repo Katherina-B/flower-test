@@ -38,7 +38,11 @@ def load_config(config_file):
     return config
 
 def load_and_split_data(data_dir):
-    config = load_config("params.yaml")
+    # Find configs/params.yaml relative to project root
+    src_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(src_dir)
+    config_path = os.path.join(root_dir, "configs", "params.yaml")
+    config = load_config(config_path)
 
     # Define data transformations
     transform = transforms.Compose([
@@ -58,7 +62,9 @@ def load_and_split_data(data_dir):
 
 
 if __name__ == "__main__":
-    config_file = "params.yaml"
+    src_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(src_dir)
+    config_file = os.path.join(root_dir, "configs", "params.yaml")
     config = load_config(config_file)
     archive_url = config['data']['dataset_url']
     destination_folder = config['data']['local_dir']

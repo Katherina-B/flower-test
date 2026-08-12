@@ -17,7 +17,7 @@ import torchvision.datasets as datasets
 from matplotlib.pyplot import colorbar
 import matplotlib.cm as cm
 
-with open("configs/params.yaml", "r") as f:
+with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "configs", "params.yaml"), "r") as f:
     config = yaml.safe_load(f)
 
 ind = config["training"]["optimizer"]["lr"]

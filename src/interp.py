@@ -1,0 +1,132 @@
+import matplotlib
+matplotlib.use('agg')
+import os
+import torch
+from captum.attr import LayerGradCam, LayerAttribution
+import matplotlib.pyplot as plt
+import wandb
+import logging
+import numpy as np
+import yaml
+from load_date import load_and_split_data
+from train import create_model
+from torch.utils.data import DataLoader
+import torch
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+from matplotlib.pyplot import colorbar
+import matplotlib.cm as cm
+
+with open("configs/params.yaml", "r") as f:
+    config = yaml.safe_load(f)
+
+ind = config["training"]["optimizer"]["lr"]
+wandb.init(
+    project="flower-classification-interpretability",
+    name=f"gradcam_lr_{ind}",
+    config={
+        "learning_rate": config["training"]["optimizer"],
+        "dataset": "Flower-102",
+        "epochs": config["training"]["epochs"],
+    }
+)
+
+def interpret_model(config):
+    original_transform = transforms.Compose([
+        transforms.Resize((225, 225)),
+        transforms.ToTensor()
+    ])
+    data_dir = config['data']['local_dir']
+    data_dir = os.path.join(data_dir, "jpg")
+    logger = logging.getLogger(__name__)
+    test_dataset = datasets.Flowers102(root=data_dir, split="train", transform=original_transform, download=True)
+    test_loader = DataLoader(test_dataset, batch_size=1)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model, _, _ = create_model()
+    model.load_state_dict(torch.load(config["artifacts"]["output_dir"] + "/best_model.pth"))
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    model.eval()  # Перевести модель у режим оцінювання
+
+    grad_cam = LayerGradCam(model, model.layer4[-1])
+    saliency = LayerAttribution(model, model.layer4[-1])
+    output_dir = "interpretation_results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    correct_predictions = []
+    incorrect_predictions = []
+
+    for images, labels in test_loader:
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        _, preds = torch.max(outputs, 1)
+        correct_prediction = (preds == labels).item()
+
+        if correct_prediction:
+            correct_predictions.append((images, labels, preds))
+        else:
+            incorrect_predictions.append((images, labels, preds))
+
+        grad_cam_attr = grad_cam.attribute(images, target=labels)
+        saliency_attr = saliency.interpolate(images, interpolate_dims=(2, 3))
+
+        for i in range(len(images)):
+            attr_img_grad_cam = grad_cam_attr[i].cpu().detach().numpy().transpose(1, 2, 0)
+            attr_img_saliency = saliency_attr[i].cpu().detach().numpy().transpose(1, 2, 0)
+
+            # Нормалізувати атрибуцію градієнта для відображення як теплову карту
+            attr_img_grad_cam = np.uint8(cm.jet(attr_img_grad_cam.squeeze())[..., :3] * 255)
+
+            fig, ax = plt.subplots(1, 3, figsize=(24, 6))
+            
+            ax[0].imshow(images[0].cpu().detach().permute(1, 2, 0))
+            ax[0].axis('off')
+            ax[0].set_title('Original Image')
+
+            im = ax[1].imshow(attr_img_grad_cam, cmap='viridis')
+            ax[1].axis('off')
+            ax[1].set_title('Grad-CAM Attribution')
+            colorbar(im, ax=ax[1])
+
+            im = ax[2].imshow(attr_img_saliency, cmap='viridis')
+            ax[2].axis('off')
+            ax[2].set_title('Saliency Attribution')
+            colorbar(im, ax=ax[2])
+
+            prediction_label = 'Correct' if correct_prediction else 'Incorrect'
+            img_path = os.path.join(output_dir, f"combined_{prediction_label}_{i}.png")
+            plt.suptitle(f'Prediction: {prediction_label}', fontsize=16)
+            plt.savefig(img_path)
+            plt.close()
+
+            wandb.log({"combined_image": [wandb.Image(img_path, caption=f"Label: {labels[i].item()}")]})
+            os.remove(img_path)
+
+    # Зберегти правильно та неправильно класифіковані зображення в окремих директоріях
+    correct_dir = os.path.join(output_dir, "correct_predictions")
+    incorrect_dir = os.path.join(output_dir, "incorrect_predictions")
+    os.makedirs(correct_dir, exist_ok=True)
+    os.makedirs(incorrect_dir, exist_ok=True)
+
+    for i, (images, labels, preds) in enumerate(correct_predictions):
+        img_path = os.path.join(correct_dir, f"correct_{i}.png")
+        plt.figure()
+        plt.imshow(images[0].cpu().detach().permute(1, 2, 0))
+        plt.axis('off')
+        plt.title(f"Label: {labels.item()}, Prediction: {preds.item()}")
+        plt.savefig(img_path)
+        plt.close()
+
+    for i, (images, labels, preds) in enumerate(incorrect_predictions):
+        img_path = os.path.join(incorrect_dir, f"incorrect_{i}.png")
+        plt.figure()
+        plt.imshow(images[0].cpu().detach().permute(1, 2, 0))
+        plt.axis('off')
+        plt.title(f"Label: {labels.item()}, Prediction: {preds.item()}")
+        plt.savefig(img_path)
+        plt.close()
+
+if __name__ == "__main__":
+    interpret_model(config)
+    wandb.finish()

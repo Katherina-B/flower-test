@@ -1,0 +1,40 @@
+stages:
+  load_date:
+    cmd: python src/load_date.py
+    params:
+      - data
+    deps:
+      - src/load_date.py
+    outs:
+      - data/train_dataset.pkl
+      - data/val_dataset.pkl
+      - data/test_dataset.pkl
+
+  train:
+    cmd: python src/train_mlflow.py
+    params:
+      - training.epochs
+      - training.batch_size
+      - training.optimizer
+      - model
+      - logging
+      - artifacts
+    deps:
+      - src/train_mlflow.py
+      - data/train_dataset.pkl
+      - data/val_dataset.pkl
+    outs:
+      - artifacts/best_model.pth
+      - logs/training.log
+
+  evaluate:
+    cmd: python src/evaluate.py
+    params:
+      - evaluation.metrics
+      - artifacts.output_dir
+    deps:
+      - artifacts/best_model.pth
+      - data/test_dataset.pkl
+      - src/evaluate.py
+    metrics:
+      - artifacts/metrics.json

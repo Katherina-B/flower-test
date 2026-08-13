@@ -22,7 +22,9 @@ with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
     config = yaml.safe_load(f)
 
 from dotenv import load_dotenv
-from setup_dagshub import setup_dagshub  # run: python setup_dagshub.py first
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from setup_dagshub import setup_dagshub
 
 load_dotenv(".env")
 setup_dagshub()

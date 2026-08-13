@@ -1,94 +1,79 @@
+"""
+Model evaluation on the test set.
+Saves metrics to artifacts/metrics.json.
+"""
+import os
+import sys
+import json
 import torch
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-import yaml
-import logging
-import os
-import json
-from typing import Dict, Tuple
 
-import torch.nn as nn
-import torch.optim as optim
-import torchvision
-import yaml
-from tqdm import tqdm
-import torchvision.models as models
-import mlflow
+# ── paths ──────────────────────────────────────────────────────────────────
+_src_dir  = os.path.dirname(os.path.abspath(__file__))
+_root_dir = os.path.dirname(_src_dir)
+sys.path.insert(0, _src_dir)
 
-
-
-Dataset = Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset, torch.utils.data.Dataset]
-ModelOutput = Tuple[nn.Module, optim.Optimizer, nn.CrossEntropyLoss]
-
+from load_date import load_config, load_and_split_data
 from train import create_model
-from load_date import load_and_split_data
-from load_date import load_config
 
-config = load_config("params.yaml")
-data_dir = config["data"]["local_dir"]
-
+config = load_config(os.path.join(_root_dir, "configs", "params.yaml"))
 
 
 def evaluate(model, test_loader, device):
     model.eval()
     correct = 0
-    total = 0
+    total   = 0
+
     with torch.no_grad():
         for inputs, targets in test_loader:
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
             _, predicted = outputs.max(1)
-            total += targets.size(0)
+            total   += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
     accuracy = 100.0 * correct / total
-    metrics = {"accuracy": accuracy / 100.0}
-    mlflow.log_metric("test_accuracy", accuracy)
-    mlflow.log_metric("test_metrics", metrics)
     print(f"Test Accuracy: {accuracy:.2f}%")
-    
+    return {"test_accuracy": round(accuracy / 100.0, 6)}
 
-    return metrics
 
 def main():
-    
-    config = load_config("params.yaml")
+    config   = load_config(os.path.join(_root_dir, "configs", "params.yaml"))
     data_dir = config["data"]["local_dir"]
 
     _, _, test_dataset = load_and_split_data(data_dir)
+    test_loader = DataLoader(
+        test_dataset, batch_size=config["training"]["batch_size"]
+    )
 
-    # Create the data loader
-    test_loader = DataLoader(test_dataset, batch_size=config["training"]["batch_size"])
-
-    # Load the trained model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, _, _ = create_model()
-    model.load_state_dict(torch.load(config["artifacts"]["output_dir"] + "/best_model.pth"))
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.load_state_dict(
+        torch.load(
+            os.path.join(config["artifacts"]["output_dir"], "best_model.pth"),
+            map_location=device,
+        )
+    )
     model.to(device)
-    
-    metrics = evaluate(model, test_loader, device)
-    for metric_name, metric_value in metrics.items():
-        mlflow.log_metric(metric_name, metric_value)
-    output_dir = config["artifacts"]["output_dir"]
-    mlflow.log_artifact(os.path.join(output_dir, "metrics.json"), "metrics")
-    
-    # Check if the file exists
-    if os.path.isfile(metrics_file):
-        # File exists, load existing metrics and append new ones
-        with open(metrics_file, "r") as f:
-            existing_metrics = json.load(f)
-        existing_metrics.update(metrics)
-        metrics_to_save = existing_metrics
-    else:
-        # File doesn't exist, create a new one
-        metrics_to_save = metrics
 
-    # Save the metrics
+    metrics     = evaluate(model, test_loader, device)
+    output_dir  = config["artifacts"]["output_dir"]
+    metrics_file = os.path.join(output_dir, "metrics.json")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Append to existing metrics if file exists
+    if os.path.isfile(metrics_file):
+        with open(metrics_file, "r") as f:
+            existing = json.load(f)
+        existing.update(metrics)
+        metrics = existing
+
     with open(metrics_file, "w") as f:
-        json.dump(metrics_to_save, f, indent=4)
+        json.dump(metrics, f, indent=4)
 
     print(f"Metrics saved to: {metrics_file}")
-    mlflow.end_run(run)
+
 
 if __name__ == "__main__":
     main()

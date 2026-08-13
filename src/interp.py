@@ -158,9 +158,15 @@ def experiment_layer_comparison(model, loader, device, n_samples=10):
         wandb_images.append(
             wandb.Image(path, caption=f"Sample {idx+1} | label {labels[0].item()}")
         )
-        os.remove(path)
 
     wandb.log({"Layer comparison (GradCAM)": wandb_images})
+
+    # W&B copies image files only when wandb.log() is called,
+    # so remove temporary files only after logging.
+    for idx in range(len(wandb_images)):
+        path = os.path.join(output_dir, f"layers_{idx+1}.png")
+        if os.path.exists(path):
+            os.remove(path)
     print(f"Layer comparison: logged {len(wandb_images)} images to W&B")
 
 
@@ -203,9 +209,14 @@ def experiment_gradcam_vs_pp(model, loader, device, n_samples=10):
         wandb_images.append(
             wandb.Image(path, caption=f"Sample {idx+1} | label {labels[0].item()}")
         )
-        os.remove(path)
 
     wandb.log({"GradCAM vs GradCAM++": wandb_images})
+
+    # Remove temporary files only after W&B has copied them.
+    for idx in range(len(wandb_images)):
+        path = os.path.join(output_dir, f"gcpp_{idx+1}.png")
+        if os.path.exists(path):
+            os.remove(path)
     print(f"GradCAM vs GradCAM++: logged {len(wandb_images)} images to W&B")
 
 

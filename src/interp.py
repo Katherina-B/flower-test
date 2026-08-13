@@ -121,7 +121,7 @@ def gradcam_pp(model, layer, images, labels):
 
 
 # ── Experiment 1: GradCAM across layers ────────────────────────────────────
-def experiment_layer_comparison(model, loader, device, n_samples=10):
+def experiment_layer_comparison(model, loader, device, n_samples=None):
     """Visualise GradCAM at layer1, layer2, layer3, layer4."""
     layers = {
         "layer1": model.layer1[-1],
@@ -171,7 +171,7 @@ def experiment_layer_comparison(model, loader, device, n_samples=10):
 
 
 # ── Experiment 2: GradCAM vs GradCAM++ ─────────────────────────────────────
-def experiment_gradcam_vs_pp(model, loader, device, n_samples=10):
+def experiment_gradcam_vs_pp(model, loader, device, n_samples=None):
     """Side-by-side: original | GradCAM | GradCAM++"""
     layer      = model.layer4[-1]
     gc         = LayerGradCam(model, layer)

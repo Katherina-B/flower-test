@@ -215,8 +215,9 @@ def main() -> None:
 
             mlflow.pytorch.log_model(
                 model,
-                "models",
-                input_example=input_example)
+        artifact_path="models",
+        input_example=input_example,
+        serialization_format="pickle")
 
         if config["artifacts"]["save_logs"]:
             # Save logs

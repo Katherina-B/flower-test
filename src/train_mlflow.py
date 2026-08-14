@@ -209,7 +209,14 @@ def main() -> None:
         model.to(device)
         os.makedirs(config["artifacts"]["output_dir"], exist_ok=True)
         if config["artifacts"]["save_best_model"]:
-            mlflow.pytorch.log_model(model, "models")  # Log the best model as an artifact
+            model.eval()
+
+            input_example = torch.randn(1, 3, 225, 225).to(device)
+
+            mlflow.pytorch.log_model(
+                model,
+                "models",
+                input_example=input_example)
 
         if config["artifacts"]["save_logs"]:
             # Save logs

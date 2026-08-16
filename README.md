@@ -1,9 +1,11 @@
 ## ML Engineering Pipeline — Flower Image Classification with MLOps
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Katherina-B/ml-engineering-mlops/blob/main/notebooks/run_pipeline.ipynb)
+[![W&B](https://img.shields.io/badge/Weights_&_Biases-FFCC33?style=flat&logo=WeightsAndBiases&logoColor=black)](https://wandb.ai/katherina-barbasheva-ntu-khpi/flower-classification-interpretability?nw=nwuserkatherinabarbasheva)
+[![DagsHub](https://img.shields.io/badge/DagsHub-MLflow-orange)](https://dagshub.com/katherina.barbasheva/ml-engineering-mlops/experiments)
 
 A complete ML engineering project built across 5 labs as part of the **ML Engineering course** at NTU KhPI (2024).
 
-End-to-end image classification pipeline using **ResNet50** on the Oxford Flowers 102 dataset, with full MLOps tooling integrated at each stage.
-
+End-to-end image classification pipeline using **ResNet50** on the Oxford Flowers 102 dataset, with full MLOps tooling — from data versioning to model interpretability.
 ---
 
 ## Results
@@ -31,15 +33,65 @@ End-to-end image classification pipeline using **ResNet50** on the Oxford Flower
 
 ## Pipeline Stages
 
-| Lab | Focus | Key Tools |
-|-----|-------|-----------|
+| Stage | Focus | Tools |
+|-------|-------|-------|
 | 1 | Basic training pipeline | Python, logging, type hints, ruff, black |
 | 2 | Automated dataset extension | Batch splitting, data registry |
 | 3 | Data version control | DVC, params.yaml |
-| 4 | Experiment tracking | MLflow |
-| 5 | Advanced tracking + interpretability | Weights & Biases, Captum (GradCAM) |
+| 4 | Experiment tracking | MLflow, DagsHub |
+| 5 | Advanced tracking + interpretability | Weights & Biases, Captum |
 
 ---
+
+## Experiment Tracking
+
+### MLflow via DagsHub
+Full experiment tracking including parameters, metrics per epoch, and model artifacts.
+View experiments: https://dagshub.com/katherina.barbasheva/ml-engineering-mlops/experiments
+
+### Weights & Biases
+GradCAM interpretability results logged as image galleries.
+View runs: https://wandb.ai/katherina-barbasheva-ntu-khpi/flower-classification-interpretability?nw=nwuserkatherinabarbasheva
+
+---
+
+## Interpretability
+
+Two experiments implemented using **Captum**:
+
+**Experiment 1 — GradCAM across layers**
+Visualises what ResNet50 learns at different depths: from simple edges (layer1) to complex flower patterns (layer4).
+
+**Experiment 2 — GradCAM vs GradCAM++**
+Side-by-side comparison of standard GradCAM and GradCAM++ — GradCAM++ produces sharper, more localised attributions especially for smaller flower regions.
+
+---
+
+## Project Structure
+
+```
+flower-classification/
+├── src/
+│   ├── train.py            # Training loop + ResNet50
+│   ├── train_mlflow.py     # Training with MLflow tracking
+│   ├── evaluate.py         # Test set evaluation
+│   ├── interp.py           # GradCAM + GradCAM++ interpretability
+│   ├── load_date.py        # Data loading and splitting
+│   └── check_cuda.py       # GPU check
+├── configs/
+│   └── params.yaml         # All hyperparameters and paths
+├── notebooks/
+│   └── run_pipeline.ipynb  # Colab notebook
+├── dvc.yaml                # DVC pipeline stages
+├── setup_dagshub.py        # DagsHub credentials setup
+├── .env.example            # Credentials template
+├── .gitignore
+└── pyproject.toml
+```
+
+---
+
+
 
 ## Tech Stack
 
@@ -75,95 +127,35 @@ Lab 5 includes model interpretability using **Captum**:
     ├── run_pipeline.ipynb    # Colab notebook to run full pipeline
     └── result.txt            # Training logs and metrics
 ---
-
 ## How to Run
 
-```bash
-# Install dependencies
-poetry install
+### Option 1 — Google Colab (recommended)
 
-# Check GPU
-python check_cuda.py
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Katherina-B/ml-engineering-mlops/blob/main/notebooks/run_pipeline.ipynb)
 
-# Train model
-python train.py
+No local setup needed. GPU included.
 
-# Run interpretability analysis
-python interp.py
-```
-
-> **Note:** Developed and trained in Google Colab with GPU. 
-> Update `data.local_dir` and `artifacts.output_dir` 
-> in `params.yaml` for local execution.
-
----
-
-## Configuration
-
-All hyperparameters and paths are controlled via `params.yaml`:
-
-```yaml
-model:
-  name: resnet50
-  pretrained: True
-  num_classes: 102
-
-training:
-  epochs: 20
-  batch_size: 32
-  optimizer:
-    name: AdamW
-    lr: 0.0001
-```
-
----
-
-*Part of the ML Engineering course — NTU KhPI, 2024*
-*Instructor: Maksym Tatariants, PhD (ML Engineer @ Toshiba)*
-
----
-
-## How to Run
+### Option 2 — Local
 
 ```bash
-# Install dependencies
+git clone https://github.com/Katherina-B/ml-engineering-mlops.git
+cd YOUR_REPO_NAME
 poetry install
-
-# Check GPU
-python check_cuda.py
-
-# Train model
-python train.py
-
-# Run interpretability analysis
-python interp.py
+python src/train.py
+python src/evaluate.py
+python src/interp.py
 ```
 
-> **Note:** Developed and trained in Google Colab with GPU. 
-> Update `data.local_dir` and `artifacts.output_dir` 
-> in `params.yaml` for local execution.
+> Update paths in `configs/params.yaml` before running locally.
 
 ---
 
-## Configuration
+## Tech Stack
 
-All hyperparameters and paths are controlled via `params.yaml`:
-
-```yaml
-model:
-  name: resnet50
-  pretrained: True
-  num_classes: 102
-
-training:
-  epochs: 20
-  batch_size: 32
-  optimizer:
-    name: AdamW
-    lr: 0.0001
-```
+Python · PyTorch · ResNet50 · Captum · DVC · MLflow · Weights & Biases · Poetry · Git
 
 ---
+
 
 *Part of the ML Engineering course — NTU KhPI, 2024*
 *Instructor: Maksym Tatariants, PhD (ML Engineer @ Toshiba)*
